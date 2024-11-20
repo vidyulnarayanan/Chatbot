@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/chatbotstyle.css' %}">
+{% endblock %}
+{% block content %}
+<div class="chat-wrapper">
+    <div class="sidebar">
+        <h4>Your Chat Sessions</h4>
+        <ul id="session-list">
+            {% for session in all_sessions %}
+                <li>
+                    <a href="?session_id={{ session.id }}" 
+                       class="{% if session.id == current_session_id %}active{% endif %}">
+                        {% if session.title %}
+                            {{ session.title }}
+                        {% else %}
+                            Session {{ forloop.counter }}
+                        {% endif %}
+                    </a>
+                    {% if session.id %}
+                        <a href="{% url 'delete_session' session_id=session.id %}" 
+                           class="delete-btn" 
+                           title="Delete">
+                            <i class="fas fa-trash-alt"></i>
+                        </a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+        <button id="new-chat-btn">+ Start New Chat</button>
+    </div>
+
+    <div class="chat-container">
+        <div class="card flex-grow-1 border-0">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <span>Welcome to Your Chat!</span>
+                <a class="text-white" href="{% url 'logout' %}">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+            <div class="card-body messages-box">
+                <ul class="messages-list">
+                    {% for chat in chats %}
+                        {% if chat.message %}
+                        <li class="message sent">
+                            <div class="message-text">
+                                <div class="message-sender"><b>You</b></div>
+                                <div class="message-content">{{ chat.message }}</div>
+                            </div>
+                        </li>
+                        {% endif %}
+                        {% if chat.response %}
+                        <li class="message received">
+                            <div class="message-text">
+                                <div class="message-sender"><b>AI Chatbot</b></div>
+                                <div class="message-content">{{ chat.response }}</div>
+                            </div>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <form class="message-form" data-session-id="{{ current_session_id }}">
+            {% csrf_token %}
+            <div class="input-group">
+                <input type="text" 
+                       class="message-input" 
+                       placeholder="Type your message..." 
+                       autocomplete="off">
+                <div class="input-group-append">
+                    <button type="submit" class="btn btn-primary btn-send">
+                        <i class="fas fa-paper-plane"></i> Send
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const messagesList = document.querySelector('.messages-list');
+    const messageForm = document.querySelector('.message-form');
+    const messageInput = document.querySelector('.message-input');
+    const currentSessionId = messageForm.getAttribute('data-session-id');
+    const messagesBox = document.querySelector('.messages-box');
+
+    function scrollToBottom() {
+        messagesBox.scrollTop = messagesBox.scrollHeight;
+    }
+
+    scrollToBottom();
+
+    messageForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const message = messageInput.value.trim();
+        if (message.length === 0) return;
+
+        messageForm.classList.add('loading');
+        messageInput.disabled = true;
+
+        const messageItem = document.createElement('li');
+        messageItem.classList.add('message', 'sent');
+        messageItem.innerHTML = `
+            <div class="message-text">
+                <div class="message-sender"><b>You</b></div>
+                <div class="message-content">${message}</div>
+            </div>`;
+        messagesList.appendChild(messageItem);
+        messageInput.value = '';
+        scrollToBottom();
+
+        fetch('', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: new URLSearchParams({
+                'message': message,
+                'session_id': currentSessionId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const responseItem = document.createElement('li');
+            responseItem.classList.add('message', 'received');
+            responseItem.innerHTML = `
+                <div class="message-text">
+                    <div class="message-sender"><b>AI Chatbot</b></div>
+                    <div class="message-content">${data.response}</div>
+                </div>`;
+            messagesList.appendChild(responseItem);
+            scrollToBottom();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to send message. Please try again.');
+        })
+        .finally(() => {
+            messageForm.classList.remove('loading');
+            messageInput.disabled = false;
+            messageInput.focus();
+        });
+    });
+
+    document.getElementById('new-chat-btn').addEventListener('click', function() {
+        const button = this;
+        button.disabled = true;
+        button.innerHTML = '• • • Creating New Chat • • •';
+
+        fetch('{% url "create_new_chat" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = `?session_id=${data.session_id}`;
+                const sessionList = document.getElementById('session-list');
+                const newSessionNumber = sessionList.children.length + 1;
+                
+                const li = document.createElement('li');
+                li.classList.add('fade-in');
+                li.innerHTML = `
+                    <a href="?session_id=${data.session_id}" class="active">
+                        Session ${newSessionNumber}
+                    </a>
+                    <a href="/delete-session/${data.session_id}/"
+                       class="delete-btn" 
+                       title="Delete">
+                        <i class="fas fa-trash-alt"></i>
+                    </a>
+                `;
+                
+                sessionList.appendChild(li);
+                
+                messagesList.innerHTML = `
+                    <li class="message received">
+                        <div class="message-text">
+                            <div class="message-sender"><b>AI Chatbot</b></div>
+                            <div class="message-content">Hi, I am your AI Chatbot. You can ask me anything.</div>
+                        </div>
+                    </li>
+                `;
+                
+                messageForm.setAttribute('data-session-id', data.session_id);
+                
+                window.history.pushState({}, '', `?session_id=${data.session_id}`);
+                
+                document.querySelectorAll('#session-list a').forEach(a => {
+                    if (!a.classList.contains('delete-btn')) {
+                        a.classList.remove('active');
+                    }
+                });
+                
+                scrollToBottom();
+                
+                messageInput.focus();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to create new chat session');
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.innerHTML = '+ Start New Chat';
+        });
+    });
+
+    messageInput.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            messageForm.dispatchEvent(new Event('submit'));
+        }
+    });
+</script>
+{% endblock %}

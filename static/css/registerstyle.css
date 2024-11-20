@@ -1,0 +1,105 @@
+/* Body background color */
+body {
+    background-color: lightcyan; /* Light blue background for the entire page */
+    font-family: 'Arial', sans-serif; /* Set a global font for better consistency */
+    margin: 0; /* Remove default margin */
+    padding: 0; /* Remove default padding */
+}
+
+/* Centering the form container */
+.register-container {
+    width: 400px;
+    margin: 100px auto; /* Centered on the page */
+    padding: 40px;
+    background-color: lightskyblue; /* Light background for the container */
+    border-radius: 12px; /* Slightly rounded corners */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); /* Soft shadow for depth */
+    text-align: center; /* Centering text */
+}
+
+/* General heading styles */
+h2 {
+    color: #007BFF; /* Blue color for heading */
+    margin-bottom: 20px;
+    font-family: 'Arial', sans-serif; /* Clean font for heading */
+}
+
+/* Styling the input fields */
+.register-container input[type="text"],
+.register-container input[type="email"],
+.register-container input[type="password"] {
+    width: calc(100% - 20px); /* Full width minus padding */
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #007BFF; /* Blue border for input fields */
+    border-radius: 6px; /* Rounded corners for input fields */
+    box-sizing: border-box; /* Ensures padding does not affect width */
+    font-size: 16px;
+}
+
+/* Prevent shrinking on focus */
+.register-container input[type="text"]:focus,
+.register-container input[type="email"]:focus,
+.register-container input[type="password"]:focus {
+    border: 2px solid #0056b3; /* Darker blue border on focus */
+    outline: none; /* Removes the default outline */
+    box-shadow: 0 0 5px rgba(0, 86, 179, 0.5); /* Blue shadow on focus */
+}
+
+/* Styling the submit button */
+.register-container button {
+    width: 100%;
+    background-color: #007BFF; /* Blue button */
+    color: white;
+    padding: 14px 20px;
+    margin-top: 10px; /* Space above button */
+    border: none;
+    border-radius: 6px; /* Rounded corners for button */
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s; /* Smooth transition for hover effect */
+}
+
+.register-container button:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+}
+
+/* Message list styling */
+.messages {
+    list-style-type: none;
+    padding: 0;
+    margin-bottom: 20px; /* Space between messages and form */
+}
+
+.messages li {
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: #f8d7da; /* Light red for error messages */
+    color: #721c24; /* Darker color for text */
+    border: 1px solid #f5c6cb; /* Light red border */
+    border-radius: 4px; /* Rounded corners for messages */
+}
+
+/* Label styles */
+label {
+    text-align: left;
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: #333; /* Dark color for labels for better contrast */
+    font-family: 'Arial', sans-serif; /* Clean font for labels */
+}
+
+/* Register link styles */
+.register-container p {
+    margin-top: 20px; /* Space above the register link */
+}
+
+.register-container a {
+    color: #007BFF; /* Blue color for link */
+    text-decoration: none; /* Remove underline */
+}
+
+.register-container a:hover {
+    text-decoration: underline; /* Underline on hover */
+}
