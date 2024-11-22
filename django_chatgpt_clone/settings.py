@@ -90,7 +90,17 @@ DATABASES = {
     }
 }
 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
 
+DOCUMENT_ROOT = os.path.join(MEDIA_ROOT, 'documents')
+VECTOR_STORE_ROOT = os.path.join(MEDIA_ROOT, 'vector_stores')
+
+os.makedirs(DOCUMENT_ROOT, exist_ok=True)
+os.makedirs(VECTOR_STORE_ROOT, exist_ok=True)
+
+GEMINI_API_RATE_LIMIT = 60  # requests per minute
+GEMINI_API_RETRY_ATTEMPTS = 3
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
