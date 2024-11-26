@@ -1,8 +1,15 @@
 """
-Retrieval-Augmented Generation (RAG) Utilities for document processing
-and conversational retrieval chains with Google Generative AI.
-"""
+Retrieval-Augmented Generation (RAG) Utilities for document processing,
+embedding storage, and conversational retrieval chains using Google Generative AI.
 
+This module provides utilities for:
+1. Interacting with Google Generative AI models for content generation.
+2. Processing and splitting PDF documents into chunks for embedding.
+3. Managing embeddings and vector stores using FAISS.
+4. Creating conversational retrieval chains for Q&A with document context.
+5. Querying multiple vector stores and combining responses intelligently.
+6. Cleaning up vector stores, metadata, and associated documents.
+"""
 import json
 import os
 import shutil
@@ -13,7 +20,6 @@ from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from google.api_core import exceptions
-import google.generativeai as genai
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from langchain.prompts import PromptTemplate
@@ -23,31 +29,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 
-genai_api_key = settings.API_KEY
-genai.configure(api_key=genai_api_key)
-
-def ask_gemini(message, history=None):
-    """Interact with the Gemini model to generate content based on the input message."""
-    try:
-        if not history:
-            history = []
-        context = "\n".join(
-            [
-                f"You: {m['message']}\nAI Chatbot: {m['response']}"
-                for m in history
-                if isinstance(m, dict) and 'message' in m and 'response' in m
-            ]
-        )
-        prompt = f"{context}\nYou: {message}\nAI Chatbot:"
-        model = genai.GenerativeModel("gemini-1.5-flash-002")
-        response = model.generate_content(prompt)
-        if response:
-            return response.text
-        return "Sorry, I didn't get a response. Please try again."
-    except Exception as e:
-        print(f"Error while interacting with Gemini API: {e}")
-        return "An error occurred while processing your request. Please try again later."
-
+from chatbot.utils.ask_gemini import ask_gemini
 
 @dataclass
 class DocumentMetadata:
@@ -78,7 +60,7 @@ class RAGProcessor:
         self.vector_store_dir.mkdir(parents=True, exist_ok=True)
         self.metadata_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_store_paths(self, doc_id: str) -> Tuple[Path, Path]:
+    def get_store_paths(self, doc_id: str) -> Tuple[Path, Path]:
         """
         Get paths for vector store and metadata files.
 
@@ -120,7 +102,7 @@ class RAGProcessor:
             chunks = text_splitter.split_documents(documents)
 
             vector_store = FAISS.from_documents(chunks, self.embeddings)
-            vector_store_path, metadata_path = self._get_store_paths(doc_id)
+            vector_store_path, metadata_path = self.get_store_paths(doc_id)
             vector_store.save_local(str(vector_store_path))
 
             metadata = DocumentMetadata(
@@ -234,7 +216,7 @@ class RAGProcessor:
                 )
 
                 similarity_results = vector_store.similarity_search_with_score(query)
-                print(f'similarity result is:{similarity_results}')
+                # print(f'similarity result is:{similarity_results}')
 
                 if similarity_results and similarity_results[0][1] > document_relevance_threshold:
                     continue

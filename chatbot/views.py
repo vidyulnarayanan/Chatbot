@@ -1,57 +1,35 @@
 """View functions for Django chatbot with persistent multi-session support.
 
-This module contains view functions for handling a chatbot application built using Django. The 
-main functionalities include:
+This module contains view functions to handle the chatbot application built using Django.
+The main functionalities include:
 
-- Starting new chat sessions.
-- Managing existing chat sessions for authenticated users.
-- Interacting with the Gemini model for AI-generated responses.
-- Deleting chat sessions and handling user requests related to sessions.
+- Starting and managing chat sessions for authenticated users.
+- Handling AI-generated responses using the Gemini model.
+- Uploading and processing documents for query-based interactions.
+- Querying documents using a Retrieval-Augmented Generation (RAG) pipeline.
+- Managing session-based document associations.
+- Deleting chat sessions and cleaning up associated data.
 
 Typical usage example:
 
     1. A user logs in and starts a chat session.
     2. The chatbot() function manages chat interactions and session history.
-    3. The create_new_chat() function creates a new session upon user request.
-    4. The delete_session() function deletes a specified chat session.
-
+    3. The upload_document() function processes user-uploaded documents for querying.
+    4. The delete_session() function removes a specified chat session and associated files.
 """
-import time
 import uuid
 from pathlib import Path
-import google.generativeai as genai
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.db.models import Min
 from django_chatgpt_clone.settings import API_KEY
+from chatbot.utils.ask_gemini import ask_gemini
 from .models import Chat,Document
 from .utils.rag_utils import RAGProcessor
 
-
-genai.configure(api_key=API_KEY)
 rag_processor = RAGProcessor(API_KEY)
-
-def ask_gemini(message,history=None):
-    """Interact with the Gemini model to generate content based on the input message."""
-    try:
-        context = "\n".join(
-            [
-                f"You: {m['message']}\nAI Chatbot: {m['response']}"
-                for m in history
-                if m['message']
-            ]
-        )
-        prompt = f"{context}\nYou: {message}\nAI Chatbot:"
-        model = genai.GenerativeModel("gemini-1.5-flash-002")
-        response = model.generate_content(prompt)
-        if response:
-            return response.text
-        return "Sorry, I didn't get a response. Please try again."
-    except Exception as e:
-        print(f"Error while interacting with Gemini API: {e}")
-        return "An error occurred while processing your request. Please try again later."
 
 @login_required
 def upload_document(request):
@@ -94,7 +72,7 @@ def chatbot(request):
     current_session_id = None
 
     if request.method == 'POST':
-        time.sleep(1)
+        # time.sleep(1)
         current_session_id = request.POST.get('session_id')
     else:
         if request.GET.get('new_chat'):
@@ -233,21 +211,28 @@ def create_new_chat(request):
 def delete_session(request, session_id):
     """Delete a chat session for the user."""
     chat_session = Chat.objects.filter(user=request.user, session_id=session_id)
-    if chat_session.exists():
-        try:
-            user_documents = Document.objects.filter(user=request.user)
-            for doc in user_documents:
-                if doc.embedding_store:
-                    rag_processor.cleanup_vector_stores()
-                if doc.file and doc.file.path:
+    if not chat_session.exists():
+        return redirect('chatbot')
+
+    try:
+        user_documents = Document.objects.filter(user=request.user)
+        for doc in user_documents:
+            if doc.file:
+                file_path = Path(doc.file.path)
+                if file_path.exists():
                     try:
-                        Path(doc.file.path).unlink()
-                        print(f"Deleted document file: {doc.file.path}")
+                        file_path.unlink()
+                        print(f"Deleted document file: {file_path}")
                     except Exception as file_error:
-                        print(f"Error deleting file {doc.file.path}: {file_error}")
-                doc.delete()
-        except Exception as cleanup_error:
-            print(f"Error cleaning up vector store: {cleanup_error}")
+                        print(f"Error deleting file {file_path}: {file_error}")
+
+            if doc.embedding_store:
+                try:
+                    rag_processor.cleanup_vector_stores()
+                except Exception as cleanup_error:
+                    print(f"Error cleaning up vector store: {cleanup_error}")
+
+            doc.delete()
 
         chat_session.delete()
 
@@ -257,8 +242,11 @@ def delete_session(request, session_id):
             .annotate(first_message=Min('created_at'))
             .order_by('-first_message')
         )
-
         if remaining_sessions.exists():
             next_session = remaining_sessions.first()["session_id"]
             return redirect(f'/chatbot?session_id={next_session}')
+
+    except Exception as general_error:
+        print(f"General error during cleanup: {general_error}")
+
     return redirect('chatbot')
